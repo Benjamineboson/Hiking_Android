@@ -27,12 +27,12 @@ public class DbHelper extends SQLiteOpenHelper {
 
 
     public DbHelper(@Nullable Context context) {
-        super(context, "hiking.db", null, 1);
+        super(context, "hiking_app.db", null, 1);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String CREATE_TABLE_QUERY = "CREATE TABLE " + MAP_TABLE + " (" + MARKER_ID + " integer primary key AUTOINCREMENT, " + MARKER_TITLE + " text, " + MARKER_IMAGE + " blob, "+MARKER_LAT+" numeric, "+MARKER_LNG+" numeric, "+MARKER_DESCRIPTION+" text)";
+        String CREATE_TABLE_QUERY = "CREATE TABLE " + MAP_TABLE + " (" + MARKER_ID + " integer primary key AUTOINCREMENT, " + MARKER_TITLE + " text, " + MARKER_IMAGE + " text, "+MARKER_LAT+" numeric, "+MARKER_LNG+" numeric, "+MARKER_DESCRIPTION+" text)";
         db.execSQL(CREATE_TABLE_QUERY);
     }
 
@@ -88,7 +88,7 @@ public class DbHelper extends SQLiteOpenHelper {
         if (cursor.moveToFirst()){
             int markerId = cursor.getInt(0);
             String markerTitle = cursor.getString(1);
-            byte[] markerImage = cursor.getBlob(2);
+            String markerImage = cursor.getString(2);
             double lat = cursor.getDouble(3);
             double lng = cursor.getDouble(4);
             String description = cursor.getString(5);
@@ -107,7 +107,7 @@ public class DbHelper extends SQLiteOpenHelper {
             do {
                 int markerId = cursor.getInt(0);
                 String markerTitle = cursor.getString(1);
-                byte[] markerImage = cursor.getBlob(2);
+                String markerImage = cursor.getString(2);
                 double lat = cursor.getDouble(3);
                 double lng = cursor.getDouble(4);
                 String description = cursor.getString(5);

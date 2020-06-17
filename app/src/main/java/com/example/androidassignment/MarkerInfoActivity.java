@@ -1,9 +1,11 @@
 package com.example.androidassignment;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -11,6 +13,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,8 +33,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.androidassignment.data.DbHelper;
 import com.example.androidassignment.entity.MarkerItem;
+
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -41,80 +52,86 @@ public class MarkerInfoActivity extends AppCompatActivity {
 
     public static final int REQUEST_UPLOAD_IMAGE = 1;
     public static final int STORAGE_PERMISSION_CODE = 1;
+    public static final int THUMBNAIL_HEIGHT = 1000;
+    public static final int THUMBNAIL_WIDTH = 1200;
     TextView act2Tv;
     private DbHelper dbHelper;
     private MarkerItem markerItem;
     private ImageView markerImageView;
+    private RequestQueue requestQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_second);
+        requestQueue = Volley.newRequestQueue(MarkerInfoActivity.this);
         dbHelper = new DbHelper(MarkerInfoActivity.this);
         markerItem = dbHelper.findByTitle(getIntent().getStringExtra("TITLE"));
+        httpGetRequest();
         act2Tv = findViewById(R.id.markerTextView);
         markerImageView = findViewById(R.id.markerImageView);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             setBarStyle();
         }
         if (markerItem.getMarkerImage() != null){
-            Bitmap bitmap = BitmapFactory.decodeByteArray(markerItem.getMarkerImage(), 0, markerItem.getMarkerImage().length);
-            markerImageView.setImageBitmap(bitmap);
+            try{
+                Bitmap bm = BitmapFactory.decodeFile(markerItem.getMarkerImage());
+                bm = Bitmap.createScaledBitmap(bm,THUMBNAIL_WIDTH,THUMBNAIL_HEIGHT,false);
+                markerImageView.setImageBitmap(bm);
+            }catch (RuntimeException e){
+                Toast.makeText(this, "Image too large", Toast.LENGTH_SHORT).show();
+            }
+
         }
 
         if (markerItem.getDescription() != null){
             act2Tv.setText(markerItem.getDescription());
         }
 
-//        if (ContextCompat.checkSelfPermission(MarkerInfoActivity.this,
-//                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-//            Toast.makeText(this, "Already granted permission", Toast.LENGTH_SHORT).show();
-//        }else{
-//            requestStoragePermission();
-//        }
-        act2Tv.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
+        if (ContextCompat.checkSelfPermission(MarkerInfoActivity.this,
+                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+            Toast.makeText(this, "Already granted permission", Toast.LENGTH_SHORT).show();
+        }else{
+            requestStoragePermission();
+        }
 
-                return false;
-            }
-        });
+
     }
 
-//    private void requestStoragePermission(){
-//        if (ActivityCompat.shouldShowRequestPermissionRationale(MarkerInfoActivity.this,
-//                Manifest.permission.READ_EXTERNAL_STORAGE)){
-//            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo dumdum")
-//                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-//                        @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
-//                        @Override
-//                        public void onClick(DialogInterface dialog, int which) {
-//                            ActivityCompat.requestPermissions(MarkerInfoActivity.this,
-//                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
-//                        }
-//                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-//                @Override
-//                public void onClick(DialogInterface dialog, int which) {
-//                    dialog.dismiss();
-//                }
-//            })
-//            .create().show();
-//        }else{
-//           ActivityCompat.requestPermissions(MarkerInfoActivity.this,
-//                   new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
-//        }
-//    }
-//
-//    @Override
-//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-//        if (requestCode == STORAGE_PERMISSION_CODE){
-//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-//                Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
-//            }else{
-//                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
-//            }
-//        }
-//    }
+    private void requestStoragePermission(){
+        if (ActivityCompat.shouldShowRequestPermissionRationale(MarkerInfoActivity.this,
+                Manifest.permission.READ_EXTERNAL_STORAGE)){
+            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo dumdum")
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions(MarkerInfoActivity.this,
+                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
+                        }
+                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            })
+            .create().show();
+        }else{
+           ActivityCompat.requestPermissions(MarkerInfoActivity.this,
+                   new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == STORAGE_PERMISSION_CODE){
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
+            }else{
+                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -187,58 +204,54 @@ public class MarkerInfoActivity extends AppCompatActivity {
     }
 
 
-//    @Override
-//    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-//        super.onActivityResult(requestCode, resultCode, data);
-//        if (resultCode == RESULT_OK) {
-//            Uri selectedImageUri = data.getData();
-//            String picturePath = getPath(MarkerInfoActivity.this, selectedImageUri);
-//            Bitmap bm = BitmapFactory.decodeFile(picturePath);
-//            markerImageView.setImageBitmap(bm);
-//            System.out.println(picturePath);
-//        }
-//    }
-//
-//
-//    public static String getPath(Context context, Uri uri ) {
-//        String result = null;
-//        String[] proj = { MediaStore.Images.Media.DATA };
-//        Cursor cursor = context.getContentResolver( ).query( uri, proj, null, null, null );
-//        if(cursor != null){
-//            if ( cursor.moveToFirst( ) ) {
-//                int column_index = cursor.getColumnIndexOrThrow( proj[0] );
-//                result = cursor.getString( column_index );
-//            }
-//            cursor.close( );
-//        }
-//        if(result == null) {
-//            result = "Not found";
-//        }
-//        return result;
-//    }
-
-
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            try {
-                final Uri imageUri = data.getData();
-                final InputStream imageStream = getContentResolver().openInputStream(imageUri);
-                final Bitmap selectedImage = BitmapFactory.decodeStream(imageStream);
-                markerImageView.setImageBitmap(selectedImage);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                selectedImage.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                byte[] byteArray = stream.toByteArray();
-                markerItem.setMarkerImage(byteArray);
-                dbHelper.delete(markerItem.getMarkerTitle());
-                dbHelper.create(markerItem);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-                Toast.makeText(MarkerInfoActivity.this, "Something went wrong", Toast.LENGTH_LONG).show();
-            }
-        }else {
-            Toast.makeText(MarkerInfoActivity.this, "No image selected",Toast.LENGTH_LONG).show();
+            Uri selectedImageUri = data.getData();
+            String picturePath = getPath(MarkerInfoActivity.this, selectedImageUri);
+            Bitmap bm = BitmapFactory.decodeFile(picturePath);
+            bm = Bitmap.createScaledBitmap(bm,THUMBNAIL_WIDTH,THUMBNAIL_HEIGHT,false);
+            markerItem.setMarkerImage(picturePath);
+            dbHelper.delete(markerItem.getMarkerTitle());
+            dbHelper.create(markerItem);
+            markerImageView.setImageBitmap(bm);
         }
     }
+
+
+    public static String getPath(Context context, Uri uri ) {
+        String result = null;
+        String[] proj = { MediaStore.Images.Media.DATA };
+        Cursor cursor = context.getContentResolver( ).query( uri, proj, null, null, null );
+        if(cursor != null){
+            if ( cursor.moveToFirst( ) ) {
+                int column_index = cursor.getColumnIndexOrThrow( proj[0] );
+                result = cursor.getString( column_index );
+            }
+            cursor.close( );
+        }
+        if(result == null) {
+            result = "Not found";
+        }
+        return result;
+    }
+    
+    public void httpGetRequest(){
+        String url = "https://api.worldweatheronline.com/premium/v1/weather.ashx?key=82f5c6c5357b4b4091271741201706&q="+markerItem.getLat()+","+markerItem.getLng()+"&format=json&num_of_days=5";
+        JsonObjectRequest myGetReq = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                act2Tv.setText(response.toString());
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                error.printStackTrace();
+            }
+        });
+        requestQueue.add(myGetReq);
+    }
+
+
 }

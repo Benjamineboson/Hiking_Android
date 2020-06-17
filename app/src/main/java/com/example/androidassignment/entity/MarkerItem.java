@@ -10,7 +10,7 @@ public class MarkerItem {
     private String description;
     private double lat;
     private double lng;
-    private byte[] markerImage;
+    private String markerImage;
 
     public MarkerItem(String markerTitle) {
         this.markerTitle = markerTitle;
@@ -28,11 +28,11 @@ public class MarkerItem {
         this.markerTitle = markerTitle;
     }
 
-    public byte[] getMarkerImage() {
+    public String getMarkerImage() {
         return markerImage;
     }
 
-    public MarkerItem(int markerId, String markerTitle, String description, double lat, double lng, byte[] markerImage) {
+    public MarkerItem(int markerId, String markerTitle, String description, double lat, double lng, String markerImage) {
         this.markerId = markerId;
         this.markerTitle = markerTitle;
         this.description = description;
@@ -76,7 +76,7 @@ public class MarkerItem {
         this.lng = lng;
     }
 
-    public void setMarkerImage(byte[] markerImage) {
+    public void setMarkerImage(String markerImage) {
         this.markerImage = markerImage;
     }
 
