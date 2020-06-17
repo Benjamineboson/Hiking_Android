@@ -1,10 +1,13 @@
 package com.example.androidassignment.entity;
 
+import androidx.annotation.NonNull;
+
 import com.google.android.gms.maps.model.LatLng;
 
 public class MarkerItem {
     private int markerId;
     private String markerTitle;
+    private String description;
     private double lat;
     private double lng;
     private byte[] markerImage;
@@ -29,18 +32,28 @@ public class MarkerItem {
         return markerImage;
     }
 
-    public MarkerItem(int markerId, String markerTitle, double lat, double lng, byte[] markerImage) {
+    public MarkerItem(int markerId, String markerTitle, String description, double lat, double lng, byte[] markerImage) {
         this.markerId = markerId;
         this.markerTitle = markerTitle;
+        this.description = description;
         this.lat = lat;
         this.lng = lng;
         this.markerImage = markerImage;
     }
 
-    public MarkerItem(String markerTitle, double lat, double lng) {
+    public MarkerItem(String markerTitle, String description, double lat, double lng) {
         this.markerTitle = markerTitle;
+        this.description = description;
         this.lat = lat;
         this.lng = lng;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public void setMarkerId(int markerId) {
@@ -65,5 +78,11 @@ public class MarkerItem {
 
     public void setMarkerImage(byte[] markerImage) {
         this.markerImage = markerImage;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return this.markerTitle;
     }
 }

@@ -1,11 +1,9 @@
 package com.example.androidassignment;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -13,12 +11,12 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,9 +36,6 @@ import com.example.androidassignment.entity.MarkerItem;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.security.Permission;
-
-import pub.devrel.easypermissions.EasyPermissions;
 
 public class MarkerInfoActivity extends AppCompatActivity {
 
@@ -58,7 +53,6 @@ public class MarkerInfoActivity extends AppCompatActivity {
         dbHelper = new DbHelper(MarkerInfoActivity.this);
         markerItem = dbHelper.findByTitle(getIntent().getStringExtra("TITLE"));
         act2Tv = findViewById(R.id.markerTextView);
-        act2Tv.setText(markerItem.getMarkerTitle());
         markerImageView = findViewById(R.id.markerImageView);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             setBarStyle();
@@ -68,50 +62,59 @@ public class MarkerInfoActivity extends AppCompatActivity {
             markerImageView.setImageBitmap(bitmap);
         }
 
-
-        if (ContextCompat.checkSelfPermission(MarkerInfoActivity.this,
-                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-            Toast.makeText(this, "Already granted permission", Toast.LENGTH_SHORT).show();
-        }else{
-            requestStoragePermission();
+        if (markerItem.getDescription() != null){
+            act2Tv.setText(markerItem.getDescription());
         }
 
-    }
+//        if (ContextCompat.checkSelfPermission(MarkerInfoActivity.this,
+//                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+//            Toast.makeText(this, "Already granted permission", Toast.LENGTH_SHORT).show();
+//        }else{
+//            requestStoragePermission();
+//        }
+        act2Tv.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
 
-    private void requestStoragePermission(){
-        if (ActivityCompat.shouldShowRequestPermissionRationale(MarkerInfoActivity.this,
-                Manifest.permission.READ_EXTERNAL_STORAGE)){
-            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo dumdum")
-                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                        @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            ActivityCompat.requestPermissions(MarkerInfoActivity.this,
-                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
-                        }
-                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            })
-            .create().show();
-        }else{
-           ActivityCompat.requestPermissions(MarkerInfoActivity.this,
-                   new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == STORAGE_PERMISSION_CODE){
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
-            }else{
-                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
+                return false;
             }
-        }
+        });
     }
+
+//    private void requestStoragePermission(){
+//        if (ActivityCompat.shouldShowRequestPermissionRationale(MarkerInfoActivity.this,
+//                Manifest.permission.READ_EXTERNAL_STORAGE)){
+//            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo dumdum")
+//                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+//                        @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+//                        @Override
+//                        public void onClick(DialogInterface dialog, int which) {
+//                            ActivityCompat.requestPermissions(MarkerInfoActivity.this,
+//                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
+//                        }
+//                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+//                @Override
+//                public void onClick(DialogInterface dialog, int which) {
+//                    dialog.dismiss();
+//                }
+//            })
+//            .create().show();
+//        }else{
+//           ActivityCompat.requestPermissions(MarkerInfoActivity.this,
+//                   new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
+//        }
+//    }
+//
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+//        if (requestCode == STORAGE_PERMISSION_CODE){
+//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+//                Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
+//            }else{
+//                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
+//            }
+//        }
+//    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -128,8 +131,35 @@ public class MarkerInfoActivity extends AppCompatActivity {
             case R.id.uploadImageItem:
                 uploadImage();
                 break;
+            case R.id.descriptionItem:
+                addDescription();
+                break;
         }
         return true;
+    }
+
+    private void addDescription() {
+        final String[] title = {""};
+        android.app.AlertDialog.Builder alertDialogBuilder = new android.app.AlertDialog.Builder(MarkerInfoActivity.this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.add_description_dialog,null);
+        alertDialogBuilder.setView(dialogView);
+        alertDialogBuilder.setCancelable(false);
+        final android.app.AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
+        Button markerTitleBtn = dialogView.findViewById(R.id.descpritionBtn);
+        final EditText setMarkerTitleInput = dialogView.findViewById(R.id.descriptionInput);
+        markerTitleBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                title[0] = setMarkerTitleInput.getText().toString();
+                act2Tv.setText(title[0]);
+                markerItem.setDescription(title[0]);
+                dbHelper.delete(markerItem.getMarkerTitle());
+                dbHelper.create(markerItem);
+                alertDialog.hide();
+            }
+        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
@@ -146,7 +176,7 @@ public class MarkerInfoActivity extends AppCompatActivity {
     private void deleteMarkerItem(){
         MapsActivity.markerLatLngList.remove(getIntent().getStringExtra("LOCATION"));
         MapsActivity.markerTitleList.remove(getIntent().getStringExtra("TITLE"));
-        dbHelper.delete(act2Tv.getText().toString());
+        dbHelper.delete(markerItem.getMarkerTitle());
         startActivity(new Intent(MarkerInfoActivity.this,MapsActivity.class));
     }
 
@@ -157,58 +187,58 @@ public class MarkerInfoActivity extends AppCompatActivity {
     }
 
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            Uri selectedImageUri = data.getData();
-            String picturePath = getPath(MarkerInfoActivity.this, selectedImageUri);
-            Bitmap bm = BitmapFactory.decodeFile(picturePath);
-            markerImageView.setImageBitmap(bm);
-            System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           "+picturePath);
-        }
-    }
-
-
-    public static String getPath(Context context, Uri uri ) {
-        String result = null;
-        String[] proj = { MediaStore.Images.Media.DATA };
-        Cursor cursor = context.getContentResolver( ).query( uri, proj, null, null, null );
-        if(cursor != null){
-            if ( cursor.moveToFirst( ) ) {
-                int column_index = cursor.getColumnIndexOrThrow( proj[0] );
-                result = cursor.getString( column_index );
-            }
-            cursor.close( );
-        }
-        if(result == null) {
-            result = "Not found";
-        }
-        return result;
-    }
-
-
 //    @Override
-//    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+//    public void onActivityResult(int requestCode, int resultCode, Intent data) {
 //        super.onActivityResult(requestCode, resultCode, data);
 //        if (resultCode == RESULT_OK) {
-//            try {
-//                final Uri imageUri = data.getData();
-//                final InputStream imageStream = getContentResolver().openInputStream(imageUri);
-//                final Bitmap selectedImage = BitmapFactory.decodeStream(imageStream);
-//                markerImageView.setImageBitmap(selectedImage);
-//                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-//                selectedImage.compress(Bitmap.CompressFormat.PNG, 100, stream);
-//                byte[] byteArray = stream.toByteArray();
-//                markerItem.setMarkerImage(byteArray);
-//                dbHelper.delete(markerItem.getMarkerTitle());
-//                dbHelper.create(markerItem);
-//            } catch (FileNotFoundException e) {
-//                e.printStackTrace();
-//                Toast.makeText(MarkerInfoActivity.this, "Something went wrong", Toast.LENGTH_LONG).show();
-//            }
-//        }else {
-//            Toast.makeText(MarkerInfoActivity.this, "No image selected",Toast.LENGTH_LONG).show();
+//            Uri selectedImageUri = data.getData();
+//            String picturePath = getPath(MarkerInfoActivity.this, selectedImageUri);
+//            Bitmap bm = BitmapFactory.decodeFile(picturePath);
+//            markerImageView.setImageBitmap(bm);
+//            System.out.println(picturePath);
 //        }
 //    }
+//
+//
+//    public static String getPath(Context context, Uri uri ) {
+//        String result = null;
+//        String[] proj = { MediaStore.Images.Media.DATA };
+//        Cursor cursor = context.getContentResolver( ).query( uri, proj, null, null, null );
+//        if(cursor != null){
+//            if ( cursor.moveToFirst( ) ) {
+//                int column_index = cursor.getColumnIndexOrThrow( proj[0] );
+//                result = cursor.getString( column_index );
+//            }
+//            cursor.close( );
+//        }
+//        if(result == null) {
+//            result = "Not found";
+//        }
+//        return result;
+//    }
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            try {
+                final Uri imageUri = data.getData();
+                final InputStream imageStream = getContentResolver().openInputStream(imageUri);
+                final Bitmap selectedImage = BitmapFactory.decodeStream(imageStream);
+                markerImageView.setImageBitmap(selectedImage);
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                selectedImage.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                byte[] byteArray = stream.toByteArray();
+                markerItem.setMarkerImage(byteArray);
+                dbHelper.delete(markerItem.getMarkerTitle());
+                dbHelper.create(markerItem);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                Toast.makeText(MarkerInfoActivity.this, "Something went wrong", Toast.LENGTH_LONG).show();
+            }
+        }else {
+            Toast.makeText(MarkerInfoActivity.this, "No image selected",Toast.LENGTH_LONG).show();
+        }
+    }
 }

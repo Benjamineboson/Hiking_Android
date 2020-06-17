@@ -8,4 +8,7 @@
     <item
         android:id="@+id/uploadImageItem"
         android:title="Upload Image" />
+    <item
+        android:id="@+id/descriptionItem"
+        android:title="Add Description" />
 </menu>

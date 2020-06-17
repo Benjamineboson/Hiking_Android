@@ -23,15 +23,16 @@ public class DbHelper extends SQLiteOpenHelper {
     public static final String MARKER_IMAGE = "markerImage";
     public static final String MARKER_LAT = "markerLat";
     public static final String MARKER_LNG = "markerLng";
+    public static final String MARKER_DESCRIPTION = "markerDescription";
 
 
     public DbHelper(@Nullable Context context) {
-        super(context, "map.db", null, 1);
+        super(context, "hiking.db", null, 1);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String CREATE_TABLE_QUERY = "CREATE TABLE " + MAP_TABLE + " (" + MARKER_ID + " integer primary key AUTOINCREMENT, " + MARKER_TITLE + " text, " + MARKER_IMAGE + " blob, "+MARKER_LAT+" numeric, "+MARKER_LNG+" numeric)";
+        String CREATE_TABLE_QUERY = "CREATE TABLE " + MAP_TABLE + " (" + MARKER_ID + " integer primary key AUTOINCREMENT, " + MARKER_TITLE + " text, " + MARKER_IMAGE + " blob, "+MARKER_LAT+" numeric, "+MARKER_LNG+" numeric, "+MARKER_DESCRIPTION+" text)";
         db.execSQL(CREATE_TABLE_QUERY);
     }
 
@@ -57,7 +58,7 @@ public class DbHelper extends SQLiteOpenHelper {
         }
     }
 
-    public boolean create(MarkerItem markerItem){
+    public MarkerItem create(MarkerItem markerItem){
         SQLiteDatabase db = this.getWritableDatabase();
 
         ContentValues contentValues = new ContentValues();
@@ -65,16 +66,17 @@ public class DbHelper extends SQLiteOpenHelper {
         contentValues.put(MARKER_IMAGE,markerItem.getMarkerImage());
         contentValues.put(MARKER_LAT,markerItem.getLat());
         contentValues.put(MARKER_LNG,markerItem.getLng());
+        contentValues.put(MARKER_DESCRIPTION,markerItem.getDescription());
 
         long insertStatus = db.insert(MAP_TABLE,null,contentValues);
 
         if (insertStatus == -1){
             db.close();
-            return false;
+            return null;
         }
         else{
             db.close();
-            return true;
+            return markerItem;
         }
     }
 
@@ -89,7 +91,8 @@ public class DbHelper extends SQLiteOpenHelper {
             byte[] markerImage = cursor.getBlob(2);
             double lat = cursor.getDouble(3);
             double lng = cursor.getDouble(4);
-            tempMarkerItem = new MarkerItem(markerId,markerTitle,lat,lng,markerImage);
+            String description = cursor.getString(5);
+            tempMarkerItem = new MarkerItem(markerId,markerTitle,description,lat,lng,markerImage);
         }
         return tempMarkerItem;
     }
@@ -107,7 +110,8 @@ public class DbHelper extends SQLiteOpenHelper {
                 byte[] markerImage = cursor.getBlob(2);
                 double lat = cursor.getDouble(3);
                 double lng = cursor.getDouble(4);
-                MarkerItem markerItem = new MarkerItem(markerId,markerTitle,lat,lng,markerImage);
+                String description = cursor.getString(5);
+                MarkerItem markerItem = new MarkerItem(markerId,markerTitle,description,lat,lng,markerImage);
                 markerItemList.add(markerItem);
             }while(cursor.moveToNext());
         }

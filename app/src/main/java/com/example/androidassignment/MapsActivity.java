@@ -1,21 +1,21 @@
 package com.example.androidassignment;
 
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.ActionBar;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 
 import com.example.androidassignment.data.DbHelper;
 import com.example.androidassignment.entity.MarkerItem;
@@ -28,19 +28,19 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private DbHelper dbHelper;
     private Button switchTerrainBtn;
     private GoogleMap mMap;
+    private ArrayAdapter arrayAdapter;
+    private ListView markerListView;
     public static List<LatLng> markerLatLngList = new ArrayList<>();
     public static List<String> markerTitleList = new ArrayList<>();
     public static List<MarkerItem> markerItemList;
-    private static int counter = 1;
+    private static int mapTerrainCounter = 2;
     @RequiresApi(api = Build.VERSION_CODES.Q)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,10 +50,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         setBarStyle();
+        markerListView = findViewById(R.id.markerListView);
         dbHelper = new DbHelper(MapsActivity.this);
         switchTerrainBtn = findViewById(R.id.switchTerrainBtn);
         switchTerrainBtn.setBackgroundColor(getResources().getColor(android.R.color.white));
         markerItemList = dbHelper.findAll();
+        updateList();
         if(savedInstanceState!=null){
             if(savedInstanceState.containsKey("points")){
                 markerLatLngList = savedInstanceState.getParcelableArrayList("markerLatLng");
@@ -67,6 +69,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMapType(2);
         if(markerTitleList.size() > 0 && markerLatLngList.size() > 0){
             for(int i=0;i<markerLatLngList.size() & i< markerTitleList.size();i++){
                 drawMarkers(markerLatLngList.get(i),markerTitleList.get(i));
@@ -97,7 +100,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         title[0] = setMarkerTitleInput.getText().toString();
                         MarkerOptions mo = new MarkerOptions().position(latLng).title(title[0]);
                         mMap.addMarker(mo);
-                        dbHelper.create(new MarkerItem(mo.getTitle(),latLng.latitude,latLng.longitude));
+                        markerItemList.add(dbHelper.create(new MarkerItem(mo.getTitle(),null,latLng.latitude,latLng.longitude)));
+                        arrayAdapter.notifyDataSetChanged();
                         markerLatLngList.add(latLng);
                         markerTitleList.add(mo.getTitle());
                         alertDialog.hide();
@@ -118,14 +122,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         switchTerrainBtn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (counter > 4){
-                            counter = 1;
+                        if (mapTerrainCounter > 4){
+                            mapTerrainCounter = 1;
                         }
-                        mMap.setMapType(++counter);
+                        mMap.setMapType(++mapTerrainCounter);
                     }
                 });
+        markerListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(markerItemList.get(position).getLat(),markerItemList.get(position).getLng())));
+                mMap.animateCamera(CameraUpdateFactory.zoomTo(12.5f));
+            }
+        });
         }
-
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
@@ -144,6 +154,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void setBarStyle(){
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         getWindow().setStatusBarColor(ContextCompat.getColor(MapsActivity.this,android.R.color.white));
+    }
+
+    private void updateList(){
+        arrayAdapter = new ArrayAdapter<MarkerItem>(MapsActivity.this,android.R.layout.simple_list_item_1,markerItemList);
+        markerListView.setAdapter(arrayAdapter);
     }
 }
 
