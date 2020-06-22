@@ -153,7 +153,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             mapTerrainCounter = 1;
                         }
                         mMap.setMapType(++mapTerrainCounter);
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(mMap.getMyLocation().getLatitude(),mMap.getMyLocation().getLatitude())));
                     }
                 });
         markerListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
