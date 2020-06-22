@@ -18,6 +18,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -25,7 +26,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
@@ -40,13 +40,12 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.androidassignment.data.DbHelper;
+import com.example.androidassignment.data.ImageFromUrlTask;
 import com.example.androidassignment.entity.MarkerItem;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 
 public class MarkerInfoActivity extends AppCompatActivity {
 
@@ -54,21 +53,23 @@ public class MarkerInfoActivity extends AppCompatActivity {
     public static final int STORAGE_PERMISSION_CODE = 1;
     public static final int THUMBNAIL_HEIGHT = 1000;
     public static final int THUMBNAIL_WIDTH = 1200;
-    TextView act2Tv;
+    TextView act2Tv,temperatureTextView;
     private DbHelper dbHelper;
     private MarkerItem markerItem;
-    private ImageView markerImageView;
+    private ImageView markerImageView,temperatureImageView;
     private RequestQueue requestQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_second);
+        setContentView(R.layout.marker_info_activity);
         requestQueue = Volley.newRequestQueue(MarkerInfoActivity.this);
         dbHelper = new DbHelper(MarkerInfoActivity.this);
         markerItem = dbHelper.findByTitle(getIntent().getStringExtra("TITLE"));
+        temperatureImageView = findViewById(R.id.temperatureImageView);
         httpGetRequest();
         act2Tv = findViewById(R.id.markerTextView);
+        temperatureTextView = findViewById(R.id.temperatureTextView);
         markerImageView = findViewById(R.id.markerImageView);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             setBarStyle();
@@ -88,6 +89,7 @@ public class MarkerInfoActivity extends AppCompatActivity {
             act2Tv.setText(markerItem.getDescription());
         }
 
+
         if (ContextCompat.checkSelfPermission(MarkerInfoActivity.this,
                 Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
             Toast.makeText(this, "Already granted permission", Toast.LENGTH_SHORT).show();
@@ -101,7 +103,7 @@ public class MarkerInfoActivity extends AppCompatActivity {
     private void requestStoragePermission(){
         if (ActivityCompat.shouldShowRequestPermissionRationale(MarkerInfoActivity.this,
                 Manifest.permission.READ_EXTERNAL_STORAGE)){
-            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo dumdum")
+            new AlertDialog.Builder(MarkerInfoActivity.this).setTitle("Permission needed").setMessage("Needed to upload photo")
                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
                         @Override
@@ -169,13 +171,13 @@ public class MarkerInfoActivity extends AppCompatActivity {
         markerTitleBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                title[0] = setMarkerTitleInput.getText().toString();
-                act2Tv.setText(title[0]);
-                markerItem.setDescription(title[0]);
-                dbHelper.delete(markerItem.getMarkerTitle());
-                dbHelper.create(markerItem);
-                alertDialog.hide();
-            }
+                    title[0] = setMarkerTitleInput.getText().toString();
+                    act2Tv.setText(title[0]);
+                    markerItem.setDescription(title[0]);
+                    dbHelper.delete(markerItem.getMarkerTitle());
+                    dbHelper.create(markerItem);
+                    alertDialog.hide();
+                }
         });
     }
 
@@ -219,7 +221,6 @@ public class MarkerInfoActivity extends AppCompatActivity {
         }
     }
 
-
     public static String getPath(Context context, Uri uri ) {
         String result = null;
         String[] proj = { MediaStore.Images.Media.DATA };
@@ -236,13 +237,27 @@ public class MarkerInfoActivity extends AppCompatActivity {
         }
         return result;
     }
-    
+
+
     public void httpGetRequest(){
         String url = "https://api.worldweatheronline.com/premium/v1/weather.ashx?key=82f5c6c5357b4b4091271741201706&q="+markerItem.getLat()+","+markerItem.getLng()+"&format=json&num_of_days=5";
         JsonObjectRequest myGetReq = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
-                act2Tv.setText(response.toString());
+                try {
+                    JSONObject data = response.getJSONObject("data");
+                    JSONArray currentCondition = data.getJSONArray("current_condition");
+                    JSONObject temperatureObject = currentCondition.getJSONObject(0);
+                    String temperature = temperatureObject.getString("temp_C");
+                    String temperatureIcon = temperatureObject.getString("weatherIconUrl");
+                    temperatureIcon = "https"+temperatureIcon.substring(15,temperatureIcon.length()-3);
+                    System.out.println(temperatureIcon +" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+                    temperatureTextView.setText("Local temperature: "+temperature+"°C");
+                    new ImageFromUrlTask(temperatureIcon,temperatureImageView).execute();
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         }, new Response.ErrorListener() {
             @Override

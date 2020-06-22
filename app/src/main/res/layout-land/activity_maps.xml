@@ -30,7 +30,7 @@
             android:id="@+id/markerListView"
             android:layout_width="90dp"
             android:layout_marginLeft="5dp"
-            android:layout_height="293dp"
+            android:layout_height="245dp"
             android:layout_marginBottom="72dp"
             android:alpha="0.75"
             android:background="#F6F5F5" />

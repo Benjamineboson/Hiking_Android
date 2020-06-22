@@ -1,11 +1,19 @@
 package com.example.androidassignment;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
@@ -16,14 +24,18 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.androidassignment.data.DbHelper;
 import com.example.androidassignment.entity.MarkerItem;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -37,6 +49,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private ArrayAdapter arrayAdapter;
     private ListView markerListView;
+    private TextView errorTextView;
+    private static final int ACCESS_FINE_LOCATION_CODE = 1;
     public static List<LatLng> markerLatLngList = new ArrayList<>();
     public static List<String> markerTitleList = new ArrayList<>();
     public static List<MarkerItem> markerItemList;
@@ -65,14 +79,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-
-
-
-
     @Override
     public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setMapType(2);
+        if (ContextCompat.checkSelfPermission(MapsActivity.this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+            Toast.makeText(MapsActivity.this, "Already granted permission", Toast.LENGTH_SHORT).show();
+            mMap.setMyLocationEnabled(true);
+        }else{
+            requestPermission();
+        }
         if(markerTitleList.size() > 0 && markerLatLngList.size() > 0){
             for(int i=0;i<markerLatLngList.size() & i< markerTitleList.size();i++){
                 drawMarkers(markerLatLngList.get(i),markerTitleList.get(i));
@@ -96,18 +113,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 alertDialog.show();
                 Button markerTitleBtn = dialogView.findViewById(R.id.markerTitleBtn);
                 final EditText setMarkerTitleInput = dialogView.findViewById(R.id.setMarkerTitleInput);
-
+                errorTextView = dialogView.findViewById(R.id.errorTextView);
                 markerTitleBtn.setOnClickListener(new View.OnClickListener() {
+                    @SuppressLint("SetTextI18n")
                     @Override
                     public void onClick(View v) {
-                        title[0] = setMarkerTitleInput.getText().toString();
-                        MarkerOptions mo = new MarkerOptions().position(latLng).title(title[0]);
-                        mMap.addMarker(mo);
-                        markerItemList.add(dbHelper.create(new MarkerItem(mo.getTitle(),null,latLng.latitude,latLng.longitude)));
-                        arrayAdapter.notifyDataSetChanged();
-                        markerLatLngList.add(latLng);
-                        markerTitleList.add(mo.getTitle());
-                        alertDialog.hide();
+                            title[0] = setMarkerTitleInput.getText().toString();
+                            MarkerOptions mo = new MarkerOptions().position(latLng).title(title[0].trim());
+                            if (dbHelper.findByTitle(title[0]) != null){
+                                errorTextView.setText("A marker with that title already exists");
+                            }else if(title[0].trim().length() < 1){
+                                errorTextView.setText("Please enter a title for your marker");
+                            }else{
+                                mMap.addMarker(mo);
+                                markerItemList.add(dbHelper.create(new MarkerItem(mo.getTitle(),null,latLng.latitude,latLng.longitude)));
+                                arrayAdapter.notifyDataSetChanged();
+                                markerLatLngList.add(latLng);
+                                markerTitleList.add(mo.getTitle());
+                                alertDialog.hide();
+                            }
                     }
                 });
             }
@@ -129,6 +153,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             mapTerrainCounter = 1;
                         }
                         mMap.setMapType(++mapTerrainCounter);
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(mMap.getMyLocation().getLatitude(),mMap.getMyLocation().getLatitude())));
                     }
                 });
         markerListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -138,7 +163,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.animateCamera(CameraUpdateFactory.zoomTo(12.5f));
             }
         });
-        }
+    }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
@@ -160,8 +185,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void updateList(){
-        arrayAdapter = new ArrayAdapter<MarkerItem>(MapsActivity.this,android.R.layout.simple_list_item_1,markerItemList);
+        arrayAdapter = new ArrayAdapter<MarkerItem>(MapsActivity.this,R.layout.my_list_view,markerItemList);
         markerListView.setAdapter(arrayAdapter);
     }
+
+
+    private void requestPermission(){
+        if (ActivityCompat.shouldShowRequestPermissionRationale(MapsActivity.this,
+                Manifest.permission.ACCESS_FINE_LOCATION)){
+            new androidx.appcompat.app.AlertDialog.Builder(MapsActivity.this).setTitle("Permission needed").setMessage("Needed to show your current location")
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions(MapsActivity.this,
+                                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},ACCESS_FINE_LOCATION_CODE);
+                            mMap.setMyLocationEnabled(true);
+                            dialog.dismiss();
+                        }
+                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            })
+                    .create().show();
+        }else{
+            ActivityCompat.requestPermissions(MapsActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},ACCESS_FINE_LOCATION_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == ACCESS_FINE_LOCATION_CODE){
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                mMap.setMyLocationEnabled(true);
+                Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
+            }else{
+                Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
 }
 
